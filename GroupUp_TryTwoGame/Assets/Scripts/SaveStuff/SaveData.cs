@@ -10,5 +10,6 @@ public class SaveData
 {
     //my little shells
     public Vector3 lastCheckpoint;
+    public int playerHealth;
     public int essenceCollected;
 }

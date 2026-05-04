@@ -10,6 +10,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Player")]
     public Vector3 lastCheckpoint;
+    public int playerHealth;
 
     [Header("Collection")]
     public int essenceCollected;
@@ -44,6 +45,7 @@ public class GameManager : MonoBehaviour
         if (data == null) return;
 
         lastCheckpoint = data.lastCheckpoint;
+        playerHealth = data.playerHealth;
         essenceCollected = data.essenceCollected;
 
         ApplyToScene();   //apply to objects in scene

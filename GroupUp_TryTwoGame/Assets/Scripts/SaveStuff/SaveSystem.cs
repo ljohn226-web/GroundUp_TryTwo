@@ -19,6 +19,7 @@ public static class SaveSystem
         SaveData data = new SaveData
         {
             lastCheckpoint = gm.lastCheckpoint,
+            playerHealth = gm.playerHealth,
             essenceCollected = gm.essenceCollected,
         };
 
