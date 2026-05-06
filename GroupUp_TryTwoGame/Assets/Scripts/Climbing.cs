@@ -53,7 +53,7 @@ public class Climbing : MonoBehaviour
             jumpDown = Input.GetButtonDown("Jump");
     }
 
-    private void StateMachine()
+    private void StateMachine() //STATEMACHINE
     {
         //state 1 - Start climbing
         if (wallFront && wallLookAngle < maxWallLookAngle && climbTimer > 0 && !isClimbing)
@@ -92,6 +92,8 @@ public class Climbing : MonoBehaviour
     private void StartClimb()
     {
         isClimbing = true;
+        pm.isClimbing = isClimbing;
+        //add animator switch here
         rb.useGravity = false;
 
         //change cam FOV 
@@ -118,6 +120,7 @@ public class Climbing : MonoBehaviour
 
         if (wallCount == 0)
         {
+          
             wallCount = 1;
             StopClimb();
             return;
@@ -161,7 +164,8 @@ public class Climbing : MonoBehaviour
     {
         rb.useGravity = true;
         isClimbing = false;
-        
+        pm.isClimbing = isClimbing;
+
         //particles on stop
     }
 }

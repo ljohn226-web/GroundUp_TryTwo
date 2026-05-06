@@ -11,6 +11,10 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement")]
     public float moveSpeed;
     public float groundDrag;
+    //public float walkSpeed;
+    //public float sprintSpeed;
+    //public float climbSpeed;
+    public float wallRunSpeed;
 
     public float jumpForce;
     public float jumpCooldown;
@@ -22,14 +26,31 @@ public class PlayerMovement : MonoBehaviour
     public LayerMask whatIsGround;
     public bool grounded;
 
+    [Header("Anim Bools")]
+    public bool isClimbing;
+    public bool isWallRunning;
+    public bool isWalking;
+    
+
     public Transform orientation;
 
-    float horizontalInput;
-    float verticalInput;
+    public float horizontalInput;
+    public float verticalInput;
 
     Vector3 moveDirection;
 
     Rigidbody rb;
+    
+
+    public enum PlayerState
+    {
+        walking,
+        //sprinting,
+        wallRunning,
+        climbing, 
+        //inAir
+    }
+
 
     void Start()
     {
@@ -62,10 +83,15 @@ public class PlayerMovement : MonoBehaviour
 
     }
 
-    private void MyInput()
+    public void MyInput()
     {
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
+
+        if (horizontalInput < 0.01 && horizontalInput > -0.01 && verticalInput < 0.01 && verticalInput > -0.01)
+            isWalking = false;
+         else
+            isWalking = true;
 
         //check jump
         if (Input.GetKey(jumpKey) && canJump && grounded)
@@ -78,6 +104,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void MovePlayer()
     {
+       
         // Calculate movement direction based on orientation
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
        
@@ -113,6 +140,16 @@ public class PlayerMovement : MonoBehaviour
     private void ResetJump()
     {
         canJump = true;
+    }
+
+    private void StateHandler()
+    {
+        //Mode - Wallrunning
+        if (isWallRunning)
+        {
+           // state = PlayerState.wallRunning;
+            moveSpeed = wallRunSpeed;
+        }
     }
 
 }
