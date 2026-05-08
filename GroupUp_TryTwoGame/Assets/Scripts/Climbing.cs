@@ -1,14 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using StarterAssets;
 
-
+[RequireComponent(typeof(CharacterController))]
 public class Climbing : MonoBehaviour
 {
     [Header ("References")]
     public Transform orientation;
-    public Rigidbody rb;
-    public PlayerMovement pm;
+   // public Rigidbody rb;
+   //replaces playerMovement and RigidBody logic 
+    public ThirdPersonController _controller; //!
     public LayerMask whatIsWall;
 
     [Header("Climbing")]
@@ -23,6 +25,7 @@ public class Climbing : MonoBehaviour
     public float sphereCastRadius;
     public float maxWallLookAngle;
     public float wallLookAngle;
+
     public float crossPatternOffset = 0.5f;
     public float wallStickDistance = 0.55f;
     public float positionLerpSpeed = 5f;
@@ -34,6 +37,10 @@ public class Climbing : MonoBehaviour
     private float horizontalInput;
     private bool jumpDown;
 
+    void Start()
+    {
+        _controller = GetComponent<ThirdPersonController>();
+    }
     // Update is called once per frame
     void Update()
     {
@@ -42,7 +49,14 @@ public class Climbing : MonoBehaviour
         StateMachine();
 
         if (isClimbing)
+        {
+            _controller.enabled = false;  
             Climb();
+        }
+        else
+        {
+            _controller.enabled = true;
+        }
     }
 
     private void GetInput()
@@ -72,8 +86,8 @@ public class Climbing : MonoBehaviour
             climbTimer -= Time.deltaTime;
 
         //reset timer when grounded
-        if (pm.grounded)    
-            climbTimer = maxClimbTime;
+       // if (pm.grounded)    
+           // climbTimer = maxClimbTime;
     }
 
     private void WallCheck()
@@ -85,16 +99,16 @@ public class Climbing : MonoBehaviour
         wallLookAngle = Vector3.Angle(orientation.forward, -frontWallHit.normal);
 
         
-            if (pm.grounded)    
+            //if (pm.grounded)    
             climbTimer = maxClimbTime;
     }
 
     private void StartClimb()
     {
         isClimbing = true;
-        pm.isClimbing = isClimbing;
+       // pm.isClimbing = isClimbing;
         //add animator switch here
-        rb.useGravity = false;
+       // rb.useGravity = false;
 
         //change cam FOV 
     }
@@ -133,7 +147,7 @@ public class Climbing : MonoBehaviour
         if (Physics.Raycast(transform.position, -checkDirection, out hit, detectionLength, whatIsWall))
         {
             //position player at wall surface
-            rb.position = Vector3.Lerp(rb.position, hit.point + hit.normal * wallStickDistance,
+            transform.position = Vector3.Lerp(transform.position, hit.point + hit.normal * wallStickDistance,
                           positionLerpSpeed * Time.deltaTime);
 
             //rotate player to face wall normal
@@ -142,13 +156,19 @@ public class Climbing : MonoBehaviour
 
             //climb based on input relative to wall
             Vector3 climbDirection = transform.TransformDirection(new Vector3(horizontalInput, verticalInput, 0f));
-            rb.linearVelocity = climbDirection * climbSpeed;
+            //rb.linearVelocity = climbDirection * climbSpeed;
+
+            //for controller now
+            _controller.Move(climbDirection * climbSpeed * Time.deltaTime);
 
             //jump away from wall
             if (jumpDown)
             {
-                rb.linearVelocity = Vector3.up * 5f + hit.normal * 2f;
+                //_controller = Vector3.up * 5f + hit.normal * 2f;
+                Vector3 jumpVelocity = Vector3.up * 5f + hit.normal * 2f;
+                _controller.Move(jumpVelocity * Time.deltaTime);
                 StopClimb();
+                isClimbing = false;
             }
         }
         else
@@ -162,9 +182,9 @@ public class Climbing : MonoBehaviour
 
     private void StopClimb()
     {
-        rb.useGravity = true;
+       // _controller.useGravity = true;
         isClimbing = false;
-        pm.isClimbing = isClimbing;
+       // pm.isClimbing = isClimbing;
 
         //particles on stop
     }
