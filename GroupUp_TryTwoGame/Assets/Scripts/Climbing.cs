@@ -159,14 +159,14 @@ public class Climbing : MonoBehaviour
             //rb.linearVelocity = climbDirection * climbSpeed;
 
             //for controller now
-            _controller.Move(climbDirection * climbSpeed * Time.deltaTime);
+           // _controller.Move(climbDirection * climbSpeed * Time.deltaTime);
 
             //jump away from wall
             if (jumpDown)
             {
                 //_controller = Vector3.up * 5f + hit.normal * 2f;
                 Vector3 jumpVelocity = Vector3.up * 5f + hit.normal * 2f;
-                _controller.Move(jumpVelocity * Time.deltaTime);
+               // _controller.Move(jumpVelocity * Time.deltaTime);
                 StopClimb();
                 isClimbing = false;
             }

@@ -101,6 +101,48 @@ namespace StarterAssets
         private int _animIDFreeFall;
         private int _animIDMotionSpeed;
 
+        //climb IDs
+        private int _animIDClimbDirection;
+
+        [Header("Climbing")]
+        //CLIMBINGSHIT !!!!!!!!!!
+        public bool isClimbing;
+        private bool wallFront;
+
+        public float climbSpeed;
+        public float maxClimbTime;
+        private float climbTimer;
+       // private float climbExitTimer;
+        public float climbExitDelay;
+
+        //Climbing detection
+        public float maxWallLookAngle;
+        public float wallLookAngle;
+        public float detectionLength;
+        public float sphereCastRadius;
+        private RaycastHit climbWallHit;
+
+        public LayerMask whatIsWall;
+
+        //YAYYY LETS GO NEXT ONE BABBYYYY
+        [Header("Wall Running")]
+        //detection
+        public bool wallRight;
+        public bool wallLeft;
+        private RaycastHit leftWallHit;
+        private RaycastHit rightWallHit;
+
+        public float wallCheckDistance;
+        public float minJumpHeight;
+        public LayerMask whatIsGround;
+        public LayerMask whatIsRunable;
+
+        //force/time
+        public float wallRunForce;
+        public float maxRunTime;
+        public float WrExitDelay;
+        private float runTimer;
+
 #if ENABLE_INPUT_SYSTEM 
         private PlayerInput _playerInput;
 #endif
@@ -159,9 +201,19 @@ namespace StarterAssets
         {
             _hasAnimator = TryGetComponent(out _animator);
 
-            JumpAndGravity();
             GroundedCheck();
-            Move();
+            CheckForWall();
+
+            if (isClimbing)
+            {
+                Climbing();
+            }
+            else
+            {
+                JumpAndGravity();
+                Move();
+
+            }
         }
 
         private void LateUpdate()
@@ -176,6 +228,8 @@ namespace StarterAssets
             _animIDJump = Animator.StringToHash("Jump");
             _animIDFreeFall = Animator.StringToHash("FreeFall");
             _animIDMotionSpeed = Animator.StringToHash("MotionSpeed");
+
+            _animIDClimbDirection = Animator.StringToHash("ClimbDirection");
         }
 
         private void GroundedCheck()
@@ -348,6 +402,158 @@ namespace StarterAssets
             if (_verticalVelocity < _terminalVelocity)
             {
                 _verticalVelocity += Gravity * Time.deltaTime;
+            }
+        }
+
+        //CLIMBING LOGIC!!!
+        private void CheckForWall()
+        {
+            //RUNABLE WALLS
+            wallRight = Physics.Raycast(transform.position, transform.right, 
+                        out rightWallHit, wallCheckDistance, whatIsRunable);
+            wallLeft = Physics.Raycast(transform.position, -transform.right, 
+                        out leftWallHit, wallCheckDistance, whatIsRunable);
+
+            //CLIMBABLE WALLS
+            //try again loser... good job :3
+            //check wall in front/climbable/forwardsmotion
+            Vector3 origin = transform.position + Vector3.up * (_controller.height *0.5f);
+
+            //    //check wall directly in front
+                wallFront = Physics.SphereCast(origin, sphereCastRadius,
+                            transform.forward, out climbWallHit, detectionLength, whatIsWall);
+
+            //GRACE TIMER PLS PLAY MY ANIM RIGHT 
+            //WORK PLSPSPLSSLPSLPSLSPO
+            if (wallFront)
+            {
+                climbTimer = climbExitDelay;
+            }
+            else
+            {
+                climbTimer -= Time.deltaTime;
+            }
+
+            //ENTER CLIMB now shes not repeating 
+            if (!isClimbing && wallFront && _input.move.y > 0.1f)
+            {
+                StartClimb();
+            }
+
+            //EXIT CLIMB - use timer for grace period to prevent flickering
+            if (isClimbing && (_input.move.y < 0.1f || climbTimer <= 0))
+            {
+                StopClimb();
+            }
+            //if (Physics.SphereCast(origin, sphereCastRadius, transform.forward, 
+            //    out climbWallHit, detectionLength, whatIsWall))
+            //{
+            //   if (_input.move.y > 0.1f)
+            //    {
+            //        StartClimb();
+            //        return;
+            //    }
+            //}
+               // Debug.Log(wallFront); workin
+
+            //if (wallFront && _input.move.y > 0.1f)
+            //{
+            //    StartClimb();
+            //}
+            //else
+            //{
+            //    StopClimb();
+            //}
+
+            //    //state 1 - Start climbing
+            //    if (wallFront && wallLookAngle < maxWallLookAngle && climbTimer > 0 && !isClimbing)
+            //    {
+            //        StartClimb();
+
+            //    }
+
+            //    //state 2 - Stop climbing (wall gone or timer expired)
+            //    if (isClimbing && (!wallFront || climbTimer <= 0))
+            //    {
+            //        StopClimb();
+            //    }
+
+            //    //decrement climb timer when climbing
+            //    if (isClimbing)
+            //        climbTimer -= Time.deltaTime;
+
+            //    //reset timer when grounded
+            //    if (Grounded)
+            //    {
+            //        climbTimer = maxClimbTime;
+            //    }
+        }
+
+        private void StartClimb()
+        {
+            isClimbing = true;
+
+            Debug.Log("Started Climbing");
+            //no grav 
+            _verticalVelocity = 0f;
+
+            //face the walll hoe
+            Vector3 wallForward = -climbWallHit.normal;
+            transform.rotation = Quaternion.LookRotation(wallForward);
+
+            //animationnnn
+            if (_hasAnimator)
+            {
+                //should you be a float? 
+                _animator.SetBool(_animIDClimbDirection, true);
+            }
+        }
+
+        private void Climbing()
+        {
+            //reference 
+            /* // normalise input direction
+            Vector3 inputDirection = new Vector3(_input.move.x, 0.0f, _input.move.y).normalized;
+*/
+            _verticalVelocity = 0f;
+            //UP/DOWN move
+            float verticalInput = _input.move.y;
+            Vector3 climbDirection = Vector3.up * verticalInput;
+
+            //reference 
+            /*// move the player
+            _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
+                             new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);*/
+
+            //stick to this dih honestly bro
+            //wall offset
+            float wallOffset = 0.2f;
+            float distFromWall = climbWallHit.distance;
+
+            //correct the dist
+            float distError = distFromWall - wallOffset;
+
+            Vector3 stickToWall = -transform.forward * distError * 5f;
+
+            _controller.stepOffset = 0f;
+            _controller.Move((climbDirection * climbSpeed + stickToWall) * Time.deltaTime);
+
+
+
+        }
+
+        private void StopClimb()
+        {
+            _controller.stepOffset = 0.1f;
+            //leave if not climbing
+            if (!isClimbing) return;
+
+            isClimbing = false;
+
+            if (_hasAnimator)
+            {
+                //turn off climb anim
+                _animator.SetBool(_animIDClimbDirection, false);
             }
         }
 
