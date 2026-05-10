@@ -97,7 +97,7 @@ public class WallRunning : MonoBehaviour
         rb.useGravity = false;
         rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
 
-        //check right wall first, if nothing, then check left wall
+        //Find normal of wall
         Vector3 wallNormal = wallRight ? rightWallHit.normal : leftWallHit.normal;
         Vector3 wallForwards = Vector3.Cross(wallNormal, Vector3.up);
 

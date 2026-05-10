@@ -99,10 +99,10 @@ namespace StarterAssets
         private int _animIDGrounded;
         private int _animIDJump;
         private int _animIDFreeFall;
-        private int _animIDMotionSpeed;
-
-        //climb IDs
+        private int _animIDMotionSpeed;       
         private int _animIDClimbDirection;
+        private int _animIDWallRunning;
+
 
         [Header("Climbing")]
         //CLIMBINGSHIT !!!!!!!!!!
@@ -127,6 +127,7 @@ namespace StarterAssets
         //YAYYY LETS GO NEXT ONE BABBYYYY
         [Header("Wall Running")]
         //detection
+        public bool isWallRunning;
         public bool wallRight;
         public bool wallLeft;
         private RaycastHit leftWallHit;
@@ -142,6 +143,22 @@ namespace StarterAssets
         public float maxRunTime;
         public float WrExitDelay;
         private float runTimer;
+
+        //wall run animation cooldown
+        public float wallRunAnimCooldown = 0.5f; // Reduced from 3.0f to play sooner
+        private float wallRunAnimCooldownTimer = 0f;
+
+        //wall run animation duration (how long the anim plays before stopping)
+        public float wallRunAnimDuration = 0.8f; // Adjust this to match your animation length
+        private float wallRunAnimTimer = 0f;
+
+        //wall run height lock
+        public float wallRunGravityMultiplier = 0.5f;
+        private float wallRunStartHeight;
+
+
+        //MOVEMENT TRIGGERS
+        public bool SpecialiedMove;
 
 #if ENABLE_INPUT_SYSTEM 
         private PlayerInput _playerInput;
@@ -195,6 +212,8 @@ namespace StarterAssets
             // reset our timeouts on start
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
+
+            SpecialiedMove = false;
         }
 
         private void Update()
@@ -202,12 +221,38 @@ namespace StarterAssets
             _hasAnimator = TryGetComponent(out _animator);
 
             GroundedCheck();
+           // Debug.Log($"Grounded: {Grounded}, VerticalVelocity: {_verticalVelocity}");
+
+            // Decrement wall run animation cooldown
+            if (wallRunAnimCooldownTimer > 0f)
+            {
+                wallRunAnimCooldownTimer -= Time.deltaTime;
+            }
+
+            // Decrement wall run animation timer and turn off anim when done
+            if (wallRunAnimTimer > 0f)
+            {
+                wallRunAnimTimer -= Time.deltaTime;
+            }
+            else if (wallRunAnimTimer <= 0f && isWallRunning && _hasAnimator)
+            {
+                _animator.SetBool(_animIDWallRunning, false);
+            }
+
             CheckForWall();
 
-            if (isClimbing)
+            if (SpecialiedMove)
             {
-                Climbing();
-            }
+                if (isClimbing)
+                {
+                    Climbing();
+                }
+                else if (isWallRunning)
+                {
+                    WallRunning();
+                }
+
+            }           
             else
             {
                 JumpAndGravity();
@@ -230,6 +275,7 @@ namespace StarterAssets
             _animIDMotionSpeed = Animator.StringToHash("MotionSpeed");
 
             _animIDClimbDirection = Animator.StringToHash("ClimbDirection");
+            _animIDWallRunning = Animator.StringToHash("WallRunning");
         }
 
         private void GroundedCheck()
@@ -239,6 +285,8 @@ namespace StarterAssets
                 transform.position.z);
             Grounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers,
                 QueryTriggerInteraction.Ignore);
+
+          //  Debug.Log($"Sphere Position: {spherePosition}, Offset: {GroundedOffset}, Radius: {GroundedRadius}");
 
             // update animator if using character
             if (_hasAnimator)
@@ -398,7 +446,7 @@ namespace StarterAssets
                 _input.jump = false;
             }
 
-            // apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
+            // apply gravity over time if under terminal (max)
             if (_verticalVelocity < _terminalVelocity)
             {
                 _verticalVelocity += Gravity * Time.deltaTime;
@@ -413,6 +461,12 @@ namespace StarterAssets
                         out rightWallHit, wallCheckDistance, whatIsRunable);
             wallLeft = Physics.Raycast(transform.position, -transform.right, 
                         out leftWallHit, wallCheckDistance, whatIsRunable);
+
+           // Debug.Log($"wallRight: {wallRight}, wallLeft: {wallLeft}, Distance: {wallCheckDistance}");
+
+            //get input 4 wallrun
+            //vertInput = _input.move.y;
+
 
             //CLIMBABLE WALLS
             //try again loser... good job :3
@@ -432,6 +486,31 @@ namespace StarterAssets
             else
             {
                 climbTimer -= Time.deltaTime;
+             }
+
+            //GRACE TIMER FOR WALLRUN
+            if (wallLeft || wallRight)
+            {
+                runTimer = WrExitDelay;
+            }
+            else
+            {
+                runTimer -= Time.deltaTime;
+            }
+
+            //ENTER WALLRUN
+            if ((wallLeft || wallRight) && _input.move.y > 0 && !Grounded)
+            {
+                if (!isWallRunning)
+                {
+                    //start wall run
+                    StartWallRun();
+                }
+            }
+            //EXIT WALLRUN/timer for grace period
+            else if (isWallRunning && (_input.move.y <= 0 || runTimer <= 0 || Grounded))
+            {
+                StopWallRun();
             }
 
             //ENTER CLIMB now shes not repeating 
@@ -440,7 +519,7 @@ namespace StarterAssets
                 StartClimb();
             }
 
-            //EXIT CLIMB - use timer for grace period to prevent flickering
+            //EXIT CLIMB/timer for grace period to prevent flickering
             if (isClimbing && (_input.move.y < 0.1f || climbTimer <= 0))
             {
                 StopClimb();
@@ -489,9 +568,12 @@ namespace StarterAssets
             //    }
         }
 
+
+        //CLIMBIN
         private void StartClimb()
         {
             isClimbing = true;
+            SpecialiedMove = true;
 
             Debug.Log("Started Climbing");
             //no grav 
@@ -544,16 +626,68 @@ namespace StarterAssets
 
         private void StopClimb()
         {
-            _controller.stepOffset = 0.1f;
             //leave if not climbing
             if (!isClimbing) return;
 
+            _controller.stepOffset = 0.1f;
             isClimbing = false;
+            SpecialiedMove = false;
 
             if (_hasAnimator)
             {
                 //turn off climb anim
                 _animator.SetBool(_animIDClimbDirection, false);
+            }
+        }
+
+
+        //WALL RUNNNNN
+        private void StartWallRun()
+        {
+            isWallRunning = true;
+            SpecialiedMove = true;
+            wallRunStartHeight = transform.position.y; // Lock the height
+            Debug.Log("Started Wall Run");
+
+            // Only play animation if cooldown has expired
+            if (wallRunAnimCooldownTimer <= 0f && _hasAnimator)
+            {
+                _animator.SetBool(_animIDWallRunning, true);
+                wallRunAnimCooldownTimer = wallRunAnimCooldown; // Start cooldown
+                //pls just play on time
+                wallRunAnimTimer = wallRunAnimDuration; // Start duration timer
+            }
+        }
+
+        private void WallRunning()
+        {
+            //Stay in pllllaaaaaaace!!
+            Vector3 newPos = transform.position;
+            newPos.y = wallRunStartHeight;
+            transform.position = newPos;
+            _verticalVelocity = 0f;
+
+            //find normal of wall
+            Vector3 wallNormal = wallRight ? rightWallHit.normal : leftWallHit.normal;
+            //then find forwards dir. from upwards dir and wall normal
+            Vector3 wallForwards = Vector3.Cross(wallNormal, Vector3.up);
+
+            _controller.stepOffset = 0f;
+            _controller.Move(wallForwards * wallRunForce * Time.deltaTime);
+        }
+
+        private void StopWallRun()
+        {
+            //leave if not wall running
+            if (!isWallRunning) return;
+
+            _controller.stepOffset = 0.1f;
+            isWallRunning = false;
+            SpecialiedMove = false;
+            
+            if (_hasAnimator)
+            {
+                _animator.SetBool(_animIDWallRunning, false);
             }
         }
 
@@ -569,6 +703,7 @@ namespace StarterAssets
             Color transparentGreen = new Color(0.0f, 1.0f, 0.0f, 0.35f);
             Color transparentRed = new Color(1.0f, 0.0f, 0.0f, 0.35f);
 
+            //WHY AM I FLYING BRUH
             if (Grounded) Gizmos.color = transparentGreen;
             else Gizmos.color = transparentRed;
 
@@ -576,6 +711,13 @@ namespace StarterAssets
             Gizmos.DrawSphere(
                 new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z),
                 GroundedRadius);
+
+            // Draw wall check raycasts
+            Gizmos.color = wallRight ? Color.green : Color.red;
+            Gizmos.DrawLine(transform.position, transform.position + transform.right * wallCheckDistance);
+
+            Gizmos.color = wallLeft ? Color.green : Color.red;
+            Gizmos.DrawLine(transform.position, transform.position - transform.right * wallCheckDistance);
         }
 
         private void OnFootstep(AnimationEvent animationEvent)
